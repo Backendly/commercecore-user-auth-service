@@ -28,6 +28,17 @@ class SoftDeleteModel(models.Model):
     class Meta:
         abstract = True
 
+class Developer(SoftDeleteModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=255, unique=True)
+    api_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
 class Organization(SoftDeleteModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255, unique=True)
@@ -37,22 +48,15 @@ class Organization(SoftDeleteModel):
     def __str__(self):
         return self.name
 
-class Developer(SoftDeleteModel):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    organizations = models.ManyToManyField(Organization, related_name='developers')
-    name = models.CharField(max_length=255)
-    api_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
-    is_active = models.BooleanField(default=True)
+class DeveloperOrganization(SoftDeleteModel):
+    developer = models.ForeignKey(Developer, on_delete=models.CASCADE)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+    role = models.CharField(max_length=255, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def __str__(self):
-        return self.name
-
-    def create_organization(self, name):
-        organization = Organization.objects.create(name=name)
-        self.organizations.add(organization)
-        return organization
+    class Meta:
+        unique_together = ('developer', 'organization')
 
 class User(AbstractBaseUser, PermissionsMixin, SoftDeleteModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
