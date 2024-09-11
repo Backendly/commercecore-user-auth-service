@@ -1,5 +1,3 @@
-# queries.py
-
 import logging
 import uuid
 from datetime import timedelta
@@ -95,12 +93,10 @@ def create_developer(organization_id, name):
         with transaction.atomic():
             validate_organization(organization_id)
             api_token = uuid.uuid4()
-            api_token_expiry = timezone.now() + timedelta(days=30)  # Token valid for 30 days
             developer = Developer.objects.create(
                 organization_id=organization_id,
                 name=name,
-                api_token=api_token,
-                api_token_expiry=api_token_expiry
+                api_token=api_token
             )
             logger.info(f"Developer created: {developer.id} in organization {organization_id}")
             serialized_data = DeveloperSerializer(developer).data
@@ -164,7 +160,6 @@ def regenerate_api_token(dev_id):
         with transaction.atomic():
             developer = Developer.objects.get(id=dev_id, deleted_at__isnull=True)
             developer.api_token = uuid.uuid4()
-            developer.api_token_expiry = timezone.now() + timedelta(days=30)  # Token valid for 30 days
             developer.save()
             logger.info(f"API token regenerated for developer: {developer.id}")
             serialized_data = DeveloperSerializer(developer).data
@@ -179,8 +174,7 @@ def validate_api_token(dev_id, token):
         developer = Developer.objects.get(
             id=dev_id,
             api_token=token,
-            deleted_at__isnull=True,
-            api_token_expiry__gte=timezone.now()  # Token must not be expired
+            deleted_at__isnull=True
         )
         logger.info(f"API token for developer {dev_id} is valid")
         return {"success": True, "developer": DeveloperSerializer(developer).data}
