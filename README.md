@@ -29,7 +29,7 @@ Virtual Environment (recommended)
 
 # Setup
 Clone the repository:
-git clone https://github.com/M1r1c1e/user_authentication-api.git
+git clone https://github.com/Backendly/commercecore-user-auth-service.git
 cd ecommerce authentication
 Create and activate a virtual environment:
 
