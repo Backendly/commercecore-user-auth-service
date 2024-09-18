@@ -78,7 +78,7 @@ router.post('/signin', async (req, res) => {
   }
 });
 
-// Protected Route (example)
+// Protected Route 
 router.get('/whoami', checkUser, async (req, res) => {
   try {
     const user = req.authData.user;
