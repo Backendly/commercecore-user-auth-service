@@ -40,7 +40,6 @@ router.post('/register', async (req, res) => {
   }
 });
 
-
 // Endpoint to retrieve the developer's API token (login)
 router.post('/retrieve-token', async (req, res) => {
   const { email, password } = req.body;
@@ -79,6 +78,32 @@ router.post('/retrieve-token', async (req, res) => {
     });
   } catch (error) {
     console.error('Error retrieving token:', error.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Endpoint to validate developer's API token
+router.get('/validate-token', async (req, res) => {
+  const apiToken = req.headers['x-api-token']; // API token provided in headers
+
+  if (!apiToken) {
+    return res.status(400).json({ error: 'API token is required' });
+  }
+
+  try {
+    // Fetch developer by API token
+    const result = await pool.query(
+      `SELECT id FROM developers WHERE api_token = $1 AND is_active = true`,
+      [apiToken]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(403).json({ error: 'Invalid or inactive developer token' });
+    }
+
+    res.status(200).json({ message: 'Valid API token' });
+  } catch (error) {
+    console.error('Error validating API token:', error.message);
     res.status(500).json({ error: 'Server error' });
   }
 });

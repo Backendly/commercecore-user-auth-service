@@ -127,42 +127,30 @@ router.post('/create-multiple', async (req, res) => {
   }
 });
 
-// Endpoint to validate developer ID, token, and organization ID
-router.post('/validate', async (req, res) => {
-  const { developerId, developerToken, organizationId } = req.body;
+// Endpoint to validate organization ID
+router.get('/validate-app/:id', async (req, res) => {
+  const { id } = req.params; // Organization ID provided in URL parameters
 
-  if (!developerId || !developerToken || !organizationId) {
-    return res.status(400).json({ error: 'Developer ID, developer token, and organization ID are required' });
+  if (!id) {
+    return res.status(400).json({ error: 'Organization ID is required' });
   }
 
   try {
-    // Check if the developer token is valid
-    const devResult = await pool.query(
-      'SELECT id FROM developers WHERE id = $1 AND api_token = $2 AND is_active = true',
-      [developerId, developerToken]
+    // Fetch organization by ID
+    const result = await pool.query(
+      `SELECT app_id FROM organizations WHERE app_id = $1`,
+      [id]
     );
 
-    if (devResult.rows.length === 0) {
-      return res.status(403).json({ error: 'Invalid or inactive developer token' });
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Organization not found' });
     }
 
-    // Check if the organization ID is valid
-    const orgResult = await pool.query(
-      'SELECT app_id FROM organizations WHERE app_id = $1',
-      [organizationId]
-    );
-
-    if (orgResult.rows.length === 0) {
-      return res.status(400).json({ error: 'Invalid organization ID' });
-    }
-
-    // All checks passed
-    res.status(200).json({ message: 'Validation successful' });
+    res.status(200).json({ message: 'Valid organization ID' });
   } catch (error) {
-    console.error('Error during validation:', error.message);
+    console.error('Error validating organization ID:', error.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
 module.exports = router;
-

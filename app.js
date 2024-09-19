@@ -1,8 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const developerRoutes = require('./routes/developer');
-const organizationRoutes = require('./routes/organization');
-const userRoutes = require('./routes/users'); // Import the users routes
+const developerRoutes = require('./routes/developer'); // Ensure this path is correct
+const organizationRoutes = require('./routes/organization'); // Ensure this path is correct
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -10,10 +9,9 @@ const port = process.env.PORT || 3000;
 // Middleware to parse JSON bodies
 app.use(bodyParser.json());
 
-// Use the developer, organization, and user routes with unique prefixes
-app.use('/api/developers', developerRoutes);
-app.use('/api/organizations', organizationRoutes);
-app.use('/api/users', userRoutes); // Use the users routes
+// Use the developer and organization routes
+app.use('/api', developerRoutes);
+app.use('/api', organizationRoutes);
 
 // Start the server
 app.listen(port, () => {
