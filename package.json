@@ -1,5 +1,5 @@
 {
-  "name": "backendly-ecommerce-authentication",
+  "name": "commercecore-user-auth-service",
   "version": "1.0.0",
   "main": "app.js",
   "scripts": {
