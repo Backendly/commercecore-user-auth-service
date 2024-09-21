@@ -1,19 +1,19 @@
+require('dotenv').config();  // Load environment variables from .env file
 const express = require('express');
-const bodyParser = require('body-parser');
-const developerRoutes = require('./routes/developer'); // Ensure this path is correct
-const organizationRoutes = require('./routes/organization'); // Ensure this path is correct
+const prisma = require('./config/db');  // Adjust the path to your db.js
 
 const app = express();
-const port = process.env.PORT || 3000;
+app.use(express.json());
 
-// Middleware to parse JSON bodies
-app.use(bodyParser.json());
+// Log environment variables for debugging (optional)
+console.log('Database URL:', process.env.DATABASE_URL);
 
-// Use the developer and organization routes
-app.use('/api', developerRoutes);
-app.use('/api', organizationRoutes);
+// Other app setup here, like routes, middleware, etc.
 
 // Start the server
+const port = process.env.PORT || 3000;
 app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+  console.log(`Server running on port ${port}`);
 });
+
+module.exports = app;
