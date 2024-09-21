@@ -1,10 +1,10 @@
 {
-  "name": "commercecore-user-auth-service",
+  "name": "backendly-ecommerce-authentication",
   "version": "1.0.0",
   "main": "app.js",
   "scripts": {
     "start": "npx prisma migrate deploy && node app.js",
-    "build": "npx prisma generate && npx prisma migrate deploy",
+    "build": "npx prisma generate",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
