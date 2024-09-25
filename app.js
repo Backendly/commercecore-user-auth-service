@@ -17,12 +17,12 @@ app.use(errorHandler);
 console.log('Database URL:', process.env.DATABASE_URL);
 
 // Set up routes
-app.use('/api/developer', developerRoutes);
-app.use('/api/app', organizationRoutes);
-app.use('/api/auth', authRoutes);  // Authentication routes
-app.use('/api/profile', profileRoutes);  // User profile routes
-app.use('/api/roles', roleRoutes);  // Role management routes
-app.use('/api/user', userRoutes);
+app.use('/api/v1/developer', developerRoutes);
+app.use('/api/v1/app', organizationRoutes);
+app.use('/api/v1/auth', authRoutes);  // Authentication routes
+app.use('/api/v1/profile', profileRoutes);  // User profile routes
+app.use('/api/v1/roles', roleRoutes);  // Role management routes
+app.use('/api/v1/user', userRoutes);
 
 // Root endpoint with introduction and list of endpoints
 app.get('/', (req, res) => {
@@ -35,68 +35,68 @@ app.get('/', (req, res) => {
       developer: {
         register: {
           method: 'POST',
-          url: '/api/developer/register',
+          url: '/api/vi/developer/register',
           description: 'Registers a new developer'
         },
         retrieveToken: {
           method: 'POST',
-          url: '/api/developer/retrieve-token',
+          url: '/api/v1/developer/retrieve-token',
           description: 'Retrieves the API token for a developer'
         },
         validateToken: {
           method: 'GET',
-          url: '/api/developer/validate-token',
+          url: '/api/v1/developer/validate-token',
           description: 'Validates the developer\'s API token'
         }
       },
       organization: {
         create: {
           method: 'POST',
-          url: '/api/app/create',
+          url: '/api/v1/app/create',
           description: 'Creates a new organization (app)'
         },
         createMultiple: {
           method: 'POST',
-          url: '/api/app/create-multiple',
+          url: '/api/v1/app/create-multiple',
           description: 'Creates multiple organizations (apps)'
         },
         validateApp: {
           method: 'GET',
-          url: '/api/app/validate-app/:id',
+          url: '/api/v1/app/validate-app/:id',
           description: 'Validates the organization ID'
         }
       },
       auth: {
         signup: {
           method: 'POST',
-          url: '/api/auth/signup',
+          url: '/api/v1/auth/signup',
           description: 'Registers a new user'
         },
         login: {
           method: 'POST',
-          url: '/api/auth/login',
+          url: '/api/v1/auth/login',
           description: 'Logs in a user'
         },
         logout: {
           method: 'POST',
-          url: '/api/auth/logout',
+          url: '/api/v1/auth/logout',
           description: 'Logs out a user'
         },
         requestPasswordReset: {
           method: 'POST',
-          url: '/api/auth/request-password-reset',
+          url: '/api/v1/auth/request-password-reset',
           description: 'Requests a password reset'
         },
         resetPassword: {
           method: 'POST',
-          url: '/api/auth/reset-password',
+          url: '/api/v1/auth/reset-password',
           description: 'Resets the user\'s password'
         }
       },
       user: {
         validateUserId: {
           method: 'GET',
-          url: '/api/user/validate-user/:userId',
+          url: '/api/v1/user/validate-user/:userId',
           description: 'Validates the user ID'
         }
       }

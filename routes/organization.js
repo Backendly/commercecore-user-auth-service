@@ -1,5 +1,5 @@
 const express = require('express');
-const prisma = require('../config/db');// Use Prisma client instance
+const prisma = require('../config/db'); // Use Prisma client instance
 const router = express.Router();
 
 // Create a single organization
@@ -124,12 +124,22 @@ router.post('/create-multiple', async (req, res) => {
 // Validate organization ID
 router.get('/validate-app/:id', async (req, res) => {
   const { id } = req.params; // Organization ID
+  const apiToken = req.headers['x-api-token'];
 
-  if (!id) {
-    return res.status(400).json({ error: 'Organization ID is required' });
+  if (!id || !apiToken) {
+    return res.status(400).json({ error: 'Organization ID and API token are required' });
   }
 
   try {
+    // Fetch the developer by API token
+    const developer = await prisma.developers.findUnique({
+      where: { api_token: apiToken, is_active: true },
+    });
+
+    if (!developer) {
+      return res.status(403).json({ error: 'Invalid or inactive developer token' });
+    }
+
     // Fetch organization by ID
     const organization = await prisma.organizations.findUnique({
       where: { app_id: id },

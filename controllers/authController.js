@@ -83,7 +83,7 @@ async function signup(req, res) {
       }
     });
 
-    return res.status(201).json({ message: 'User created successfully', user });
+    return res.status(201).json({ message: 'User created successfully', user: { id: user.id, email: user.email, firstname: user.first_name, lastname: user.last_name, appid: user.organization_id, developerid: user.developer_id } });
   } catch (error) {
     console.error('Signup error:', error);
     return res.status(500).json({ message: 'An error occurred during signup.' });
@@ -94,11 +94,20 @@ async function signup(req, res) {
 async function login(req, res) {
   const { email, password } = req.body;
 
+  console.log('Request body:', req.body); // Debugging statement
+
+  if (!email || !password) {
+    return res.status(400).json({ message: 'Email and password are required' });
+  }
+
   try {
     const user = await prisma.users.findUnique({ where: { email } });
     if (!user) {
       return res.status(400).json({ message: 'Invalid email or password' });
     }
+
+    console.log('Password from request:', password);
+    console.log('Password hash from database:', user.password_hash);
 
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
     if (!isPasswordValid) {
@@ -181,6 +190,10 @@ async function requestPasswordReset(req, res) {
 async function resetPassword(req, res) {
   const { token, newPassword } = req.body;
 
+  if (!token || !newPassword) {
+    return res.status(400).json({ message: 'Token and new password are required' });
+  }
+
   try {
     const resetToken = await prisma.password_reset_tokens.findUnique({ where: { token } });
     if (!resetToken || resetToken.expires_at < new Date()) {
@@ -205,24 +218,59 @@ async function resetPassword(req, res) {
 // Validate User ID
 async function validateUserId(req, res) {
   const { userId } = req.params;
+  const developerToken = req.headers['x-api-token'];
+  const organizationId = req.headers['x-app-id'];
+
+  if (!developerToken) {
+    return res.status(400).json({ message: 'Developer API token is required' });
+  }
+
+  if (!organizationId) {
+    return res.status(400).json({ message: 'Organization ID is required' });
+  }
 
   try {
-    const user = await prisma.users.findUnique({ where: { id: parseInt(userId, 10) } });
+    // Fetch the developer by API token
+    const developer = await prisma.developers.findUnique({
+      where: { api_token: developerToken, is_active: true },
+      include: {
+        developer_organizations: {
+          include: {
+            organizations: true
+          }
+        }
+      }
+    });
+
+    if (!developer) {
+      return res.status(403).json({ message: 'Invalid or inactive developer token' });
+    }
+
+    // Check if the organization belongs to the developer
+    const organization = developer.developer_organizations.find(org => org.app_id === organizationId);
+
+    if (!organization) {
+      return res.status(400).json({ message: 'Organization not found' });
+    }
+
+    // Validate the user ID
+    const user = await prisma.users.findUnique({ where: { id: userId } });
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    return res.status(200).json({ message: 'User ID is valid', user });
+    return res.status(200).json({ message: 'User ID is valid', user: { id: user.id, email: user.email, firstname: user.first_name, lastname: user.last_name, appid: user.organization_id, developerid: user.developer_id }});
   } catch (error) {
     console.error('Error validating user ID:', error);
     return res.status(500).json({ message: 'Server error' });
   }
 }
+
 module.exports = {
   signup,
   login,
   logout,
   requestPasswordReset,
   resetPassword,
-  validateUserId 
+  validateUserId
 };
