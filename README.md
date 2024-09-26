@@ -28,6 +28,7 @@ Welcome to the E-commerce API documentation. This API provides a set of endpoint
 ## Base URL
 
 All API endpoints are prefixed with the base URL:https://commercecore-user-service-api-c5139cd37734.herokuapp.com/
+Documentation link: https://documenter.getpostman.com/view/38251338/2sAXqs7NKR
 
 
 ## Authentication
