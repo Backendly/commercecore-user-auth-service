@@ -35,7 +35,7 @@ app.get('/', (req, res) => {
       developer: {
         register: {
           method: 'POST',
-          url: '/api/vi/developer/register',
+          url: '/api/v1/developer/register',
           description: 'Registers a new developer'
         },
         retrieveToken: {
@@ -91,6 +91,26 @@ app.get('/', (req, res) => {
           method: 'POST',
           url: '/api/v1/auth/reset-password',
           description: 'Resets the user\'s password'
+        },
+        regenerateOTP: {
+          method: 'POST',
+          url: '/api/v1/auth/regenerate-otp',
+          description: 'Regenerates a new OTP'
+        },
+        emailConfirmation: {
+          method: 'POST',
+          url: '/api/v1/auth/email-confirmation',
+          description: 'Confirms the user\'s email'
+        },
+        loginValidation: {
+          method: 'POST',
+          url: '/api/v1/auth/login-validation',
+          description: 'Validates the user\'s login'
+        },
+        regenerateEmailVerificationOTP: {
+          method: 'POST',
+          url: '/api/v1/auth/regenerate-email-verification-otp',
+          description: 'Regenerates a new email verification OTP'
         }
       },
       user: {
@@ -98,6 +118,28 @@ app.get('/', (req, res) => {
           method: 'GET',
           url: '/api/v1/user/validate-user/:userId',
           description: 'Validates the user ID'
+        }
+      },
+      profile: {
+        getProfile: {
+          method: 'GET',
+          url: '/api/v1/profile',
+          description: 'Gets the authenticated user\'s profile'
+        },
+        createProfile: {
+          method: 'POST',
+          url: '/api/v1/profile',
+          description: 'Creates a new user profile'
+        },
+        updateProfile: {
+          method: 'PUT',
+          url: '/api/v1/profile',
+          description: 'Updates the authenticated user\'s profile'
+        },
+        deleteProfile: {
+          method: 'DELETE',
+          url: '/api/v1/profile',
+          description: 'Deletes the authenticated user\'s profile'
         }
       }
     }

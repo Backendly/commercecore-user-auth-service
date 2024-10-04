@@ -1,10 +1,11 @@
 const bcrypt = require('bcrypt');
 const prisma = require('../config/db'); // Correct path to Prisma client instance
-const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const jwt = require('jsonwebtoken');
+const speakeasy = require('speakeasy'); // Add speakeasy
 
-// Configure Nodemailer
+// Configure your email transporter
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -13,20 +14,24 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+// Function to generate a numeric OTP using speakeasy
+function generateNumericOTP() {
+  return speakeasy.totp({
+    secret: speakeasy.generateSecret().base32,
+    encoding: 'base32',
+    digits: 6
+  });
+}
+
 // Signup
 async function signup(req, res) {
   const { email, password, first_name, last_name, user_type, app_id, api_token } = req.body;
 
-  if (!api_token) {
-    return res.status(400).json({ message: 'Developer API token is required for signup.' });
-  }
-
-  if (!app_id) {
-    return res.status(400).json({ message: 'Organization ID (app_id) is required for signup.' });
+  if (!api_token || !app_id) {
+    return res.status(400).json({ message: 'Developer API token and Organization ID (app_id) are required for signup.' });
   }
 
   try {
-    // Fetch the developer by API token
     const developer = await prisma.developers.findUnique({
       where: { api_token: api_token, is_active: true },
       include: {
@@ -42,9 +47,7 @@ async function signup(req, res) {
       return res.status(403).json({ message: 'Invalid or inactive developer token.' });
     }
 
-    // Check if the organization belongs to the developer
     const organization = developer.developer_organizations.find(org => org.app_id === app_id);
-
     if (!organization) {
       return res.status(400).json({ message: 'Organization not found.' });
     }
@@ -55,6 +58,8 @@ async function signup(req, res) {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const emailVerificationToken = generateNumericOTP();
+
     const user = await prisma.users.create({
       data: {
         email,
@@ -62,17 +67,95 @@ async function signup(req, res) {
         first_name,
         last_name,
         user_type,
-        organization_id: app_id,
-        developer_id: developer.id
+        organizations: {
+          connect: { app_id: app_id }
+        },
+        developers: {
+          connect: { id: developer.id }
+        },
+        email_verification_token: emailVerificationToken,
+        email_verified: false
       }
     });
 
-    // Send confirmation email
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
-      subject: 'Welcome to Our Service',
-      text: `Hello ${first_name},\n\nThank you for signing up!`
+      subject: 'Email Verification',
+      text: `Hello ${user.first_name},\n\nYour email verification code is: ${emailVerificationToken}\n\nPlease note that this code will expire in 24 hours.\n\nRegards,\nYourApp Team`
+    };
+    
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.error('Error sending email:', error);
+      } else {
+        console.log('Email sent:', info.response);
+      }
+    });
+
+    return res.status(201).json({ 
+      message: 'User created successfully. Please verify your email.', 
+      user: { 
+        id: user.id, 
+        email: user.email, 
+        firstname: user.first_name, 
+        lastname: user.last_name, 
+        appid: user.organization_id, 
+        developerid: user.developer_id 
+      } 
+    });
+  } catch (error) {
+    console.error('Signup error:', error);
+    return res.status(500).json({ message: 'An error occurred during signup.' });
+  }
+}
+
+// Email Confirmation
+async function emailConfirmation(req, res) {
+  const { email, token } = req.body;
+
+  try {
+    const user = await prisma.users.findUnique({ where: { email } });
+    if (!user || user.email_verification_token !== token) {
+      return res.status(400).json({ message: 'Invalid token or email' });
+    }
+
+    await prisma.users.update({
+      where: { email },
+      data: { email_verified: true, email_verification_token: null }
+    });
+
+    return res.status(200).json({ message: 'Email verified successfully' });
+  } catch (error) {
+    console.error('Email confirmation error:', error);
+    return res.status(500).json({ message: 'An error occurred during email confirmation.' });
+  }
+}
+
+// Regenerate Email Verification OTP
+async function regenerateEmailVerificationOTP(req, res) {
+  const { email } = req.body;
+
+  try {
+    const user = await prisma.users.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const emailVerificationToken = generateNumericOTP(); // Generate a new 6-digit numeric OTP
+
+    await prisma.users.update({
+      where: { email },
+      data: {
+        email_verification_token: emailVerificationToken
+      }
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'New Email Verification Code',
+      text: `Hello ${user.first_name},\n\nYour new email verification code is: ${emailVerificationToken}\n\nPlease note that this code will expire in 24 hours.\n\nRegards,\nYourApp Team`
     };
 
     transporter.sendMail(mailOptions, (error, info) => {
@@ -83,49 +166,163 @@ async function signup(req, res) {
       }
     });
 
-    return res.status(201).json({ message: 'User created successfully', user: { id: user.id, email: user.email, firstname: user.first_name, lastname: user.last_name, appid: user.organization_id, developerid: user.developer_id } });
+    return res.status(200).json({ message: 'New email verification OTP sent to your email' });
   } catch (error) {
-    console.error('Signup error:', error);
-    return res.status(500).json({ message: 'An error occurred during signup.' });
+    console.error('Error regenerating email verification OTP:', error);
+    return res.status(500).json({ message: 'Server error' });
   }
 }
-
 // Login
 async function login(req, res) {
   const { email, password } = req.body;
-
-  console.log('Request body:', req.body); // Debugging statement
 
   if (!email || !password) {
     return res.status(400).json({ message: 'Email and password are required' });
   }
 
   try {
-    const user = await prisma.users.findUnique({ where: { email } });
+    const user = await prisma.users.findUnique({
+      where: { email },
+      include: { otp_tokens: true } // Include otp_tokens relation
+    });
     if (!user) {
       return res.status(400).json({ message: 'Invalid email or password' });
     }
-
-    console.log('Password from request:', password);
-    console.log('Password hash from database:', user.password_hash);
 
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
     if (!isPasswordValid) {
       return res.status(400).json({ message: 'Invalid email or password' });
     }
 
+    if (!user.email_verified) {
+      return res.status(400).json({ message: 'Email not verified' });
+    }
+
+    const loginVerificationToken = generateNumericOTP(); // Generate a 6-digit numeric OTP
+
+    await prisma.otp_tokens.create({
+      data: {
+        user_id: user.id,
+        otp: loginVerificationToken,
+        expires_at: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes from now
+      }
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Login Verification',
+      text: `Hello ${user.first_name},\n\nYour login verification code is: ${loginVerificationToken}\n\nRegards,\nYourApp Team`
+    };
+
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.error('Error sending email:', error);
+      } else {
+        console.log('Email sent:', info.response);
+      }
+    });
+
+    return res.status(200).json({ message: 'Login verification code sent to your email' });
+  } catch (error) {
+    console.error('Login error:', error);
+    return res.status(500).json({ message: 'An error occurred during login.' });
+  }
+}
+
+// Login Validation
+async function loginValidation(req, res) {
+  const { email, otp, rememberMe } = req.body;
+
+  if (!email || !otp) {
+    return res.status(400).json({ message: 'Email and OTP are required' });
+  }
+
+  try {
+    const user = await prisma.users.findUnique({
+      where: { email },
+      include: { otp_tokens: true } // Include otp_tokens relation
+    });
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid email or OTP' });
+    }
+
+    const otpToken = user.otp_tokens.find(token => token.otp === otp && token.expires_at > new Date());
+    if (!otpToken) {
+      return res.status(400).json({ message: 'Invalid or expired OTP' });
+    }
+
+    // If OTP is valid, generate JWT token
     const token = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+    // Generate a long-lived token if rememberMe is true
+    if (rememberMe) {
+      const rememberToken = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '30d' });
+      await prisma.tokens.create({
+        data: {
+          user_id: user.id,
+          token: rememberToken,
+          type: 'remember',
+          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
+        }
+      });
+    }
+
     await prisma.tokens.create({
       data: {
         user_id: user.id,
-        token
+        token,
+        type: 'auth',
+        expires_at: new Date(Date.now() + 1 * 60 * 60 * 1000) // 1 hour from now
       }
     });
 
     return res.status(200).json({ message: 'Login successful', token });
   } catch (error) {
-    console.error('Login error:', error);
-    return res.status(500).json({ message: 'An error occurred during login.' });
+    console.error('Login validation error:', error);
+    return res.status(500).json({ message: 'An error occurred during login validation.' });
+  }
+}
+
+// Regenerate OTP
+async function regenerateOTP(req, res) {
+  const { email } = req.body;
+
+  try {
+    const user = await prisma.users.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const loginVerificationToken = generateNumericOTP(); // Generate a new 6-digit numeric OTP
+
+    await prisma.otp_tokens.create({
+      data: {
+        user_id: user.id,
+        otp: loginVerificationToken,
+        expires_at: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes from now
+      }
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'New Login Verification Code',
+      text: `Hello ${user.first_name},\n\nYour new login verification code is: ${loginVerificationToken}\n\nPlease note that this code will expire in 10 minutes.\n\nRegards,\nYourApp Team`
+    };
+
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.error('Error sending email:', error);
+      } else {
+        console.log('Email sent:', info.response);
+      }
+    });
+
+    return res.status(200).json({ message: 'New OTP sent to your email' });
+  } catch (error) {
+    console.error('Error regenerating OTP:', error);
+    return res.status(500).json({ message: 'Server error' });
   }
 }
 
@@ -133,9 +330,7 @@ async function login(req, res) {
 async function logout(req, res) {
   try {
     const token = req.headers.authorization.split(' ')[1];
-    await prisma.tokens.deleteMany({
-      where: { token }
-    });
+    await prisma.tokens.deleteMany({ where: { token } });
     return res.status(200).json({ message: 'Logout successful' });
   } catch (error) {
     console.error('Logout error:', error);
@@ -156,15 +351,15 @@ async function requestPasswordReset(req, res) {
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 3600000); // 1 hour expiry
 
-    await prisma.password_reset_tokens.create({
+    await prisma.tokens.create({
       data: {
         user_id: user.id,
         token,
+        type: 'password_reset',
         expires_at: expiresAt
       }
     });
 
-    // Send email with reset token
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
@@ -195,7 +390,7 @@ async function resetPassword(req, res) {
   }
 
   try {
-    const resetToken = await prisma.password_reset_tokens.findUnique({ where: { token } });
+    const resetToken = await prisma.tokens.findUnique({ where: { token, type: 'password_reset' } });
     if (!resetToken || resetToken.expires_at < new Date()) {
       return res.status(400).json({ message: 'Invalid or expired token' });
     }
@@ -206,7 +401,7 @@ async function resetPassword(req, res) {
       data: { password_hash: hashedPassword }
     });
 
-    await prisma.password_reset_tokens.delete({ where: { id: resetToken.id } });
+    await prisma.tokens.delete({ where: { id: resetToken.id } });
 
     return res.status(200).json({ message: 'Password reset successful' });
   } catch (error) {
@@ -221,16 +416,11 @@ async function validateUserId(req, res) {
   const developerToken = req.headers['x-api-token'];
   const organizationId = req.headers['x-app-id'];
 
-  if (!developerToken) {
-    return res.status(400).json({ message: 'Developer API token is required' });
-  }
-
-  if (!organizationId) {
-    return res.status(400).json({ message: 'Organization ID is required' });
+  if (!developerToken || !organizationId) {
+    return res.status(400).json({ message: 'Developer API token and Organization ID are required' });
   }
 
   try {
-    // Fetch the developer by API token
     const developer = await prisma.developers.findUnique({
       where: { api_token: developerToken, is_active: true },
       include: {
@@ -246,14 +436,11 @@ async function validateUserId(req, res) {
       return res.status(403).json({ message: 'Invalid or inactive developer token' });
     }
 
-    // Check if the organization belongs to the developer
     const organization = developer.developer_organizations.find(org => org.app_id === organizationId);
-
     if (!organization) {
       return res.status(400).json({ message: 'Organization not found' });
     }
 
-    // Validate the user ID
     const user = await prisma.users.findUnique({ where: { id: userId } });
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -268,9 +455,13 @@ async function validateUserId(req, res) {
 
 module.exports = {
   signup,
+  emailConfirmation,
   login,
+  loginValidation,
   logout,
   requestPasswordReset,
   resetPassword,
-  validateUserId
+  validateUserId,
+  regenerateOTP,
+  regenerateEmailVerificationOTP
 };

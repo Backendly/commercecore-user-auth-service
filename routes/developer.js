@@ -1,5 +1,5 @@
 const express = require('express');
-const prisma = require('../config/db'); // Use Prisma client instance
+const prisma = require('../config/db');// Use Prisma client instance
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcrypt');
 const router = express.Router();
@@ -31,10 +31,6 @@ router.post('/register', async (req, res) => {
       developer: { id: developer.id },
     });
   } catch (error) {
-    if (error.code === 'P2002') {
-      return res.status(409).json({ error: 'Email already exists' });
-    }
-
     console.error('Error registering developer:', error.message);
     res.status(500).json({ error: 'Server error' });
   }
@@ -93,7 +89,7 @@ router.get('/validate-token', async (req, res) => {
 
     res.status(200).json({
       message: 'Valid API token',
-      developer: { id: developer.id }, // Return developer's ID
+      developer: { id: developer.id } // Return developer's ID
     });
   } catch (error) {
     console.error('Error validating API token:', error.message);

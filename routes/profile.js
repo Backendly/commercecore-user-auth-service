@@ -1,11 +1,19 @@
 const express = require('express');
-const { getProfile, updateProfile } = require('../controllers/profileController');
-const authenticateToken = require('../middlewares/authMiddleware');
-
+const profileController = require('../controllers/profileController');
+const authenticate = require('../middlewares/profileMiddleware'); // Correct path to middleware
 
 const router = express.Router();
 
-router.get('/', authenticateToken, getProfile); // Get user's profile
-router.put('/', authenticateToken, updateProfile); // Update user's profile
+// Get profile
+router.get('/', authenticate, profileController.getProfile);
+
+// Create profile
+router.post('/', authenticate, profileController.createProfile);
+
+// Update profile
+router.put('/', authenticate, profileController.updateProfile);
+
+// Delete profile
+router.delete('/', authenticate, profileController.deleteProfile);
 
 module.exports = router;
