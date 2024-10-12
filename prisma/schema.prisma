@@ -34,6 +34,19 @@ model developers {
   tokens                  tokens[]
   user_profiles           user_profiles[]
   users                   users[]
+  developer_profiles      developer_profiles?       @relation("DeveloperProfile")
+}
+
+model developer_profiles {
+  developer_id        String      @id @db.Uuid
+  name                String      @db.VarChar
+  phone_number        String?     @db.VarChar
+  address             String?     @db.VarChar
+  profile_picture_url String?     @db.VarChar
+  created_at          DateTime?   @default(now()) @db.Timestamp(6)
+  updated_at          DateTime?   @default(now()) @db.Timestamp(6)
+  deleted_at          DateTime?   @db.Timestamp(6)
+  developers          developers  @relation("DeveloperProfile", fields: [developer_id], references: [id], onUpdate: NoAction)
 }
 
 model organizations {

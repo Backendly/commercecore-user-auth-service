@@ -5,6 +5,8 @@
   "scripts": {
     "start": "npx prisma migrate deploy && node app.js",
     "build": "npx prisma generate",
+    "queue": "node queueProcessor.js",
+    "subscriber": "node subscriberProcessor.js",
     "test": "jest"
   },
   "keywords": [
@@ -18,9 +20,11 @@
   "dependencies": {
     "@prisma/client": "^5.19.1",
     "bcrypt": "^5.1.1",
+    "bull": "^4.16.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
+    "ioredis": "^5.4.1",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^6.9.15",
     "otp-generator": "^4.0.1",

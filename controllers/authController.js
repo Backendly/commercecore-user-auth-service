@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const speakeasy = require('speakeasy'); // Add speakeasy
+const { assignRoleToUser } = require('../utils/roleUtils'); // Import the role assignment function
 
 // Configure your email transporter
 const transporter = nodemailer.createTransport({
@@ -77,6 +78,21 @@ async function signup(req, res) {
         email_verified: false
       }
     });
+
+    // Create user profile
+    await prisma.user_profiles.create({
+      data: {
+        user_id: user.id,
+        developer_id: developer.id,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        created_at: new Date(),
+        updated_at: new Date()
+      }
+    });
+
+    // Assign the 'user' role to the new user
+    await assignRoleToUser(user.id, 'user');
 
     const mailOptions = {
       from: process.env.EMAIL_USER,
@@ -172,6 +188,7 @@ async function regenerateEmailVerificationOTP(req, res) {
     return res.status(500).json({ message: 'Server error' });
   }
 }
+
 // Login
 async function login(req, res) {
   const { email, password } = req.body;
