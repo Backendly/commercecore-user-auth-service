@@ -22,7 +22,7 @@ exports.getProfile = async (req, res) => {
         return res.status(404).json({ message: 'Profile not found' });
       }
 
-      // Customize the response for user profile
+      // Customize response for user profile
       response = {
         first_name: profile.first_name,
         last_name: profile.last_name,
@@ -41,7 +41,7 @@ exports.getProfile = async (req, res) => {
         return res.status(404).json({ message: 'Profile not found' });
       }
 
-      // Customize the response for developer profile
+      // Customize response for developer profile
       response = {
         name: profile.name,
         phone_number: profile.phone_number,
@@ -178,7 +178,7 @@ exports.deleteProfile = async (req, res) => {
         data: { deleted_at: new Date() },
       });
 
-      // Add a job to the queue to delete the profile after 60 days
+      //  Job to the queue to delete the profile after 60 days
       await deleteProfileQueue.add(
         { developerId },
         { delay: 60 * 24 * 60 * 60 * 1000 } // 60 days in milliseconds
