@@ -18,7 +18,7 @@
   "license": "ISC",
   "description": "Backend authentication service for an e-commerce platform",
   "dependencies": {
-    "@prisma/client": "^5.19.1",
+    "@prisma/client": "^5.20.0",
     "bcrypt": "^5.1.1",
     "bull": "^4.16.3",
     "cors": "^2.8.5",
@@ -35,7 +35,7 @@
   },
   "devDependencies": {
     "jest": "^29.7.0",
-    "prisma": "^5.19.1",
+    "prisma": "^5.20.0",
     "supertest": "^7.0.0"
   }
 }

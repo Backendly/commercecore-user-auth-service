@@ -1,7 +1,8 @@
 const express = require('express');
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
-const { authenticateToken } = require('../middleware/authMiddleware'); // Adjust the path to your middleware
+const { authenticateToken } = require('../middlewares/authMiddleware'); // Adjust the path to your
+                                                                        // middleware
 
 jest.mock('jsonwebtoken');
 
