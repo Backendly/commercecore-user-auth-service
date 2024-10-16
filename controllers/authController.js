@@ -4,7 +4,6 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const speakeasy = require('speakeasy'); // Add speakeasy
-const { assignRoleToUser } = require('../utils/roleUtils'); // Import the role assignment function
 
 // Configure your email transporter
 const transporter = nodemailer.createTransport({
@@ -91,8 +90,7 @@ async function signup(req, res) {
       }
     });
 
-    // Assign the 'user' role to the new user
-    await assignRoleToUser(user.id, 'user');
+  
 
     const mailOptions = {
       from: process.env.EMAIL_USER,

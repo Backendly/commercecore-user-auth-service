@@ -1,7 +1,6 @@
 const prisma = require('../config/db'); // Use Prisma client instance
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcrypt');
-const { assignRoleToDeveloper } = require('../utils/roleUtils'); // Import the role assignment function
 
 // Register a developer
 exports.registerDeveloper = async (req, res) => {
@@ -36,8 +35,7 @@ exports.registerDeveloper = async (req, res) => {
       },
     });
 
-    // Assign the 'developer' role to the new developer
-    await assignRoleToDeveloper(developer.id, null, 'developer'); // Pass null for appId
+  
 
     res.status(201).json({
       message: 'Developer registered successfully',
