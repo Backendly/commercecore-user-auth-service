@@ -1,4 +1,5 @@
 const prisma = require('../config/db'); // Use Prisma client instance
+const { cacheData, getCachedData } = require('../middlewares/cache'); // Import caching functions
 
 // Create a single organization
 exports.createOrganization = async (req, res) => {
@@ -10,13 +11,19 @@ exports.createOrganization = async (req, res) => {
   }
 
   try {
-    // Fetch the developer by API token
-    const developer = await prisma.developers.findUnique({
-      where: { api_token: apiToken, is_active: true },
-    });
-
+    // Check if developer data is cached
+    let developer = await getCachedData(`developer:${apiToken}`);
     if (!developer) {
-      return res.status(403).json({ error: 'Invalid or inactive developer token' });
+      developer = await prisma.developers.findUnique({
+        where: { api_token: apiToken, is_active: true },
+      });
+
+      if (!developer) {
+        return res.status(403).json({ error: 'Invalid or inactive developer token' });
+      }
+
+      // Cache developer data
+      await cacheData(`developer:${apiToken}`, developer);
     }
 
     // Create a new organization and link it to the developer
@@ -56,13 +63,19 @@ exports.createMultipleOrganizations = async (req, res) => {
   }
 
   try {
-    // Fetch the developer by API token
-    const developer = await prisma.developers.findUnique({
-      where: { api_token: apiToken, is_active: true },
-    });
-
+    // Check if developer data is cached
+    let developer = await getCachedData(`developer:${apiToken}`);
     if (!developer) {
-      return res.status(403).json({ error: 'Invalid or inactive developer token' });
+      developer = await prisma.developers.findUnique({
+        where: { api_token: apiToken, is_active: true },
+      });
+
+      if (!developer) {
+        return res.status(403).json({ error: 'Invalid or inactive developer token' });
+      }
+
+      // Cache developer data
+      await cacheData(`developer:${apiToken}`, developer);
     }
 
     const createdOrganizations = [];
@@ -119,6 +132,7 @@ exports.createMultipleOrganizations = async (req, res) => {
   }
 };
 
+
 // Validate organization ID
 exports.validateOrganizationId = async (req, res) => {
   const { id } = req.params; // Organization ID
@@ -129,23 +143,39 @@ exports.validateOrganizationId = async (req, res) => {
   }
 
   try {
-    // Fetch the developer by API token
-    const developer = await prisma.developers.findUnique({
-      where: { api_token: apiToken, is_active: true },
-    });
-
+    // Check if developer data is cached
+    let developer = await getCachedData(`developer:${apiToken}`);
     if (!developer) {
-      return res.status(403).json({ error: 'Invalid or inactive developer token' });
+      developer = await prisma.developers.findUnique({
+        where: { api_token: apiToken, is_active: true },
+      });
+
+      if (!developer) {
+        return res.status(403).json({ error: 'Invalid or inactive developer token' });
+      }
+
+      // Cache developer data
+      await cacheData(`developer:${apiToken}`, developer);
     }
 
-    // Fetch organization by ID
-    const organization = await prisma.organizations.findUnique({
-      where: { app_id: id },
-    });
+    console.log('Developer:', JSON.stringify(developer, null, 2));
 
+    // Check if organization data is cached
+    let organization = await getCachedData(`organization:${id}`);
     if (!organization) {
-      return res.status(404).json({ error: 'Organization not found' });
+      organization = await prisma.organizations.findUnique({
+        where: { app_id: id },
+      });
+
+      if (!organization) {
+        return res.status(404).json({ error: 'Organization not found' });
+      }
+
+      // Cache organization data
+      await cacheData(`organization:${id}`, organization);
     }
+
+    console.log('Organization:', JSON.stringify(organization, null, 2));
 
     res.status(200).json({ message: 'Valid organization ID' });
   } catch (error) {

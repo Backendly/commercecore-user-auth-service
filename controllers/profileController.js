@@ -1,7 +1,7 @@
-// controllers/profileController.js
 const prisma = require('../config/db'); // Import Prisma instance
 const deleteProfileQueue = require('../queues/deleteProfileQueue'); // Import the queue
 const { publishProfileDeleted } = require('../publishers/profilePublisher'); // Import the publisher
+const { cacheData, getCachedData } = require('../middlewares/cache'); // Import caching functions
 
 // Get the authenticated user's or developer's profile
 exports.getProfile = async (req, res) => {
@@ -13,13 +13,20 @@ exports.getProfile = async (req, res) => {
     let response;
 
     if (userId) {
-      profile = await prisma.user_profiles.findUnique({
-        where: { user_id: userId },
-        include: { users: true }, // To include user details
-      });
-
+      // Check if user profile is cached
+      profile = await getCachedData(`userProfile:${userId}`);
       if (!profile) {
-        return res.status(404).json({ message: 'Profile not found' });
+        profile = await prisma.user_profiles.findUnique({
+          where: { user_id: userId },
+          include: { users: true }, // To include user details
+        });
+
+        if (!profile) {
+          return res.status(404).json({ message: 'Profile not found' });
+        }
+
+        // Cache the user profile
+        await cacheData(`userProfile:${userId}`, profile);
       }
 
       // Customize response for user profile
@@ -32,13 +39,20 @@ exports.getProfile = async (req, res) => {
         email: profile.users.email, // Include user email
       };
     } else if (developerId) {
-      profile = await prisma.developer_profiles.findUnique({
-        where: { developer_id: developerId },
-        include: { developers: true }, // To include developer details
-      });
-
+      // Check if developer profile is cached
+      profile = await getCachedData(`developerProfile:${developerId}`);
       if (!profile) {
-        return res.status(404).json({ message: 'Profile not found' });
+        profile = await prisma.developer_profiles.findUnique({
+          where: { developer_id: developerId },
+          include: { developers: true }, // To include developer details
+        });
+
+        if (!profile) {
+          return res.status(404).json({ message: 'Profile not found' });
+        }
+
+        // Cache the developer profile
+        await cacheData(`developerProfile:${developerId}`, profile);
       }
 
       // Customize response for developer profile
@@ -90,6 +104,9 @@ exports.updateProfile = async (req, res) => {
         data: updateData,
       });
 
+      // Invalidate the cache for the updated user profile
+      await cacheData(`userProfile:${userId}`, updatedProfile);
+
       // Customize the response for user profile
       response = {
         first_name: updatedProfile.first_name,
@@ -111,6 +128,9 @@ exports.updateProfile = async (req, res) => {
         where: { developer_id: developerId },
         data: developerUpdateData,
       });
+
+      // Invalidate the cache for the updated developer profile
+      await cacheData(`developerProfile:${developerId}`, updatedProfile);
 
       // Customize the response for developer profile
       response = {
@@ -156,6 +176,9 @@ exports.deleteProfile = async (req, res) => {
         where: { user_id: userId },
       });
 
+      // Invalidate the cache for the deleted user profile
+      await cacheData(`userProfile:${userId}`, null);
+
       // Publish the user profile deleted event
       await publishProfileDeleted('user', userId);
 
@@ -178,7 +201,10 @@ exports.deleteProfile = async (req, res) => {
         data: { deleted_at: new Date() },
       });
 
-      //  Job to the queue to delete the profile after 60 days
+      // Invalidate the cache for the deleted developer profile
+      await cacheData(`developerProfile:${developerId}`, null);
+
+      // Job to the queue to delete the profile after 60 days
       await deleteProfileQueue.add(
         { developerId },
         { delay: 60 * 24 * 60 * 60 * 1000 } // 60 days in milliseconds

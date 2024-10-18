@@ -1,8 +1,10 @@
+// routes/user.js
 const express = require('express');
-const router = express.Router();
-const authController = require('../controllers/authController');
+const { validateUserId } = require('../controllers/authController');
+const { cacheMiddleware } = require('../middlewares/cache');
 
-// Validate User ID
-router.get('/validate-user/:userId', authController.validateUserId);
+const router = express.Router();
+
+router.get('/validate-user/:userId', cacheMiddleware, validateUserId);
 
 module.exports = router;

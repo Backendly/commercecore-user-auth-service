@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const speakeasy = require('speakeasy'); // Add speakeasy
+const { cacheData, getCachedData } = require('../middlewares/cache'); // Adjust the path as needed
 
 // Configure your email transporter
 const transporter = nodemailer.createTransport({
@@ -90,15 +91,13 @@ async function signup(req, res) {
       }
     });
 
-  
-
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
       subject: 'Email Verification',
       text: `Hello ${user.first_name},\n\nYour email verification code is: ${emailVerificationToken}\n\nPlease note that this code will expire in 24 hours.\n\nRegards,\nYourApp Team`
     };
-    
+
     transporter.sendMail(mailOptions, (error, info) => {
       if (error) {
         console.error('Error sending email:', error);
@@ -107,16 +106,16 @@ async function signup(req, res) {
       }
     });
 
-    return res.status(201).json({ 
-      message: 'User created successfully. Please verify your email.', 
-      user: { 
-        id: user.id, 
-        email: user.email, 
-        firstname: user.first_name, 
-        lastname: user.last_name, 
-        appid: user.organization_id, 
-        developerid: user.developer_id 
-      } 
+    return res.status(201).json({
+      message: 'User created successfully. Please verify your email.',
+      user: {
+        id: user.id,
+        email: user.email,
+        firstname: user.first_name,
+        lastname: user.last_name,
+        appid: user.organization_id,
+        developerid: user.developer_id
+      }
     });
   } catch (error) {
     console.error('Signup error:', error);
@@ -129,6 +128,18 @@ async function emailConfirmation(req, res) {
   const { email, token } = req.body;
 
   try {
+    const cacheKey = `emailConfirmation:${email}`;
+    const cachedUser = await req.cache.get(cacheKey);
+
+    if (cachedUser && cachedUser.email_verification_token === token) {
+      await prisma.users.update({
+        where: { email },
+        data: { email_verified: true, email_verification_token: null }
+      });
+
+      return res.status(200).json({ message: 'Email verified successfully (from cache)' });
+    }
+
     const user = await prisma.users.findUnique({ where: { email } });
     if (!user || user.email_verification_token !== token) {
       return res.status(400).json({ message: 'Invalid token or email' });
@@ -138,6 +149,8 @@ async function emailConfirmation(req, res) {
       where: { email },
       data: { email_verified: true, email_verification_token: null }
     });
+
+    await req.cache.set(cacheKey, user);
 
     return res.status(200).json({ message: 'Email verified successfully' });
   } catch (error) {
@@ -196,6 +209,16 @@ async function login(req, res) {
   }
 
   try {
+    const cacheKey = `login:${email}`;
+    const cachedUser = await req.cache.get(cacheKey);
+
+    if (cachedUser) {
+      return res.status(200).json({
+        message: 'Login successful (from cache)',
+        user: cachedUser
+      });
+    }
+
     const user = await prisma.users.findUnique({
       where: { email },
       include: { otp_tokens: true } // Include otp_tokens relation
@@ -238,6 +261,8 @@ async function login(req, res) {
       }
     });
 
+    await req.cache.set(cacheKey, user);
+
     return res.status(200).json({ message: 'Login verification code sent to your email' });
   } catch (error) {
     console.error('Login error:', error);
@@ -254,6 +279,39 @@ async function loginValidation(req, res) {
   }
 
   try {
+    const cacheKey = `loginValidation:${email}`;
+    const cachedUser = await req.cache.get(cacheKey);
+
+    if (cachedUser) {
+      const otpToken = cachedUser.otp_tokens.find(token => token.otp === otp && token.expires_at > new Date());
+      if (otpToken) {
+        const token = jwt.sign({ userId: cachedUser.id, role: cachedUser.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+        if (rememberMe) {
+          const rememberToken = jwt.sign({ userId: cachedUser.id, role: cachedUser.role }, process.env.JWT_SECRET, { expiresIn: '30d' });
+          await prisma.tokens.create({
+            data: {
+              user_id: cachedUser.id,
+              token: rememberToken,
+              type: 'remember',
+              expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
+            }
+          });
+        }
+
+        await prisma.tokens.create({
+          data: {
+            user_id: cachedUser.id,
+            token,
+            type: 'auth',
+            expires_at: new Date(Date.now() + 1 * 60 * 60 * 1000) // 1 hour from now
+          }
+        });
+
+        return res.status(200).json({ message: 'Login successful (from cache)', token });
+      }
+    }
+
     const user = await prisma.users.findUnique({
       where: { email },
       include: { otp_tokens: true } // Include otp_tokens relation
@@ -267,10 +325,8 @@ async function loginValidation(req, res) {
       return res.status(400).json({ message: 'Invalid or expired OTP' });
     }
 
-    // If OTP is valid, generate JWT token
     const token = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
-    // Generate a long-lived token if rememberMe is true
     if (rememberMe) {
       const rememberToken = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '30d' });
       await prisma.tokens.create({
@@ -291,6 +347,8 @@ async function loginValidation(req, res) {
         expires_at: new Date(Date.now() + 1 * 60 * 60 * 1000) // 1 hour from now
       }
     });
+
+    await req.cache.set(cacheKey, user);
 
     return res.status(200).json({ message: 'Login successful', token });
   } catch (error) {
@@ -436,6 +494,13 @@ async function validateUserId(req, res) {
   }
 
   try {
+    const cacheKey = `validateUserId:${userId}`;
+    const cachedUser = await req.cache.get(cacheKey);
+
+    if (cachedUser) {
+      return res.status(200).json({ message: 'User ID is valid' });
+    }
+
     const developer = await prisma.developers.findUnique({
       where: { api_token: developerToken, is_active: true },
       include: {
@@ -461,7 +526,9 @@ async function validateUserId(req, res) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    return res.status(200).json({ message: 'User ID is valid', user: { id: user.id, email: user.email, firstname: user.first_name, lastname: user.last_name, appid: user.organization_id, developerid: user.developer_id }});
+    await req.cache.set(cacheKey, user);
+
+    return res.status(200).json({ message: 'User ID is valid' });
   } catch (error) {
     console.error('Error validating user ID:', error);
     return res.status(500).json({ message: 'Server error' });

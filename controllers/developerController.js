@@ -35,8 +35,6 @@ exports.registerDeveloper = async (req, res) => {
       },
     });
 
-  
-
     res.status(201).json({
       message: 'Developer registered successfully',
       developer: { id: developer.id },
@@ -56,6 +54,16 @@ exports.retrieveToken = async (req, res) => {
   }
 
   try {
+    const cacheKey = `token:${email}`;
+    const cachedToken = await req.cache.get(cacheKey);
+
+    if (cachedToken) {
+      return res.status(200).json({
+        message: 'Token retrieved successfully (from cache)',
+        developer: { id: cachedToken.id, api_token: cachedToken.api_token },
+      });
+    }
+
     const developer = await prisma.developers.findUnique({
       where: { email, is_active: true },
     });
@@ -69,6 +77,8 @@ exports.retrieveToken = async (req, res) => {
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Invalid password' });
     }
+
+    await req.cache.set(cacheKey, { id: developer.id, api_token: developer.api_token });
 
     res.status(200).json({
       message: 'Token retrieved successfully',
@@ -89,6 +99,16 @@ exports.validateToken = async (req, res) => {
   }
 
   try {
+    const cacheKey = `validate:${apiToken}`;
+    const cachedDeveloper = await req.cache.get(cacheKey);
+
+    if (cachedDeveloper) {
+      return res.status(200).json({
+        message: 'Valid API token (from cache)',
+        developer: { id: cachedDeveloper.id }
+      });
+    }
+
     // Fetch developer by API token
     const developer = await prisma.developers.findUnique({
       where: { api_token: apiToken, is_active: true },
@@ -97,6 +117,8 @@ exports.validateToken = async (req, res) => {
     if (!developer) {
       return res.status(403).json({ error: 'Invalid or inactive developer token' });
     }
+
+    await req.cache.set(cacheKey, { id: developer.id });
 
     res.status(200).json({
       message: 'Valid API token',

@@ -1,16 +1,17 @@
-const Queue = require('bull');
-const prisma = require('../config/db'); // Import Prisma instance
-const redisClient = require('../config/redis'); // Import Redis client
-const Redis = require('ioredis'); // Import Redis from ioredis
+// queue/deleteProfileQueue.js
+/*const Queue = require('bull');
+const prisma = require('../config/db');
+const { client1 } = require('../config/redis'); // Use client1 for queue
+const Redis = require('ioredis');
 
-// Create a new Bull queue using the existing Redis client
+// Create a new Bull queue
 const deleteProfileQueue = new Queue('deleteProfile', {
   createClient: function (type) {
     switch (type) {
       case 'client':
-        return redisClient;
+        return client1; // Use client1 for the queue
       case 'subscriber':
-        return redisClient.duplicate();
+        return client1.duplicate(); // Duplicate client1 for subscriber
       default:
         return new Redis(process.env.REDIS_URL, {
           enableReadyCheck: false,
@@ -35,7 +36,7 @@ deleteProfileQueue.process(async (job) => {
       where: { id: developerId },
     });
 
-    // Optionally, delete related tokens and other data
+    // Optionally, delete related tokens
     await prisma.tokens.deleteMany({
       where: { developer_id: developerId },
     });
@@ -49,3 +50,4 @@ deleteProfileQueue.process(async (job) => {
 });
 
 module.exports = deleteProfileQueue;
+**/
