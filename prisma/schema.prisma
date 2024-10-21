@@ -30,6 +30,11 @@ model developers {
   created_at              DateTime?                 @default(now()) @db.Timestamp(6)
   updated_at              DateTime?                 @default(now()) @db.Timestamp(6)
   deleted_at              DateTime?                 @db.Timestamp(6)
+  email_verification_token String?                  @db.VarChar
+  token_expires_at        DateTime?                 @db.Timestamp(6)
+  email_verified          Boolean?                  @default(false) // Ensure this field exists
+  password_reset_token    String?                   @db.VarChar
+  reset_token_expires_at  DateTime?                 @db.Timestamp(6)
   developer_organizations developer_organizations[]
   tokens                  tokens[]
   user_profiles           user_profiles[]

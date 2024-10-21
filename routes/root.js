@@ -1,4 +1,3 @@
-// routes/root.js
 const express = require('express');
 const router = express.Router();
 
@@ -15,15 +14,30 @@ router.get('/', (req, res) => {
           url: '/api/v1/developer/register',
           description: 'Registers a new developer'
         },
+        emailConfirmation: {
+          method: 'POST',
+          url: '/api/v1/developer/email-confirmation',
+          description: 'Confirms the developer\'s email'
+        },
         retrieveToken: {
           method: 'POST',
           url: '/api/v1/developer/retrieve-token',
-          description: 'Retrieves the API token for a developer'
+          description: 'Retrieves the API token for a developer (requires email verification)'
         },
         validateToken: {
           method: 'GET',
           url: '/api/v1/developer/validate-token',
           description: 'Validates the developer\'s API token'
+        },
+        regenerateToken: {
+          method: 'POST',
+          url: '/api/v1/developer/regenerate-token',
+          description: 'Regenerates the developer\'s API token when expired'
+        },
+        resetPassword: {
+          method: 'POST',
+          url: '/api/v1/developer/reset-password',
+          description: 'Resets the developer\'s password'
         }
       },
       organization: {
