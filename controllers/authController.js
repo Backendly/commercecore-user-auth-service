@@ -285,6 +285,12 @@ async function loginValidation(req, res) {
     if (cachedUser) {
       const otpToken = cachedUser.otp_tokens.find(token => token.otp === otp && token.expires_at > new Date());
       if (otpToken) {
+        // Update is_logged_in field
+        await prisma.users.update({
+          where: { id: cachedUser.id },
+          data: { is_logged_in: true }
+        });
+
         const token = jwt.sign({ userId: cachedUser.id, role: cachedUser.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
         if (rememberMe) {
@@ -324,6 +330,12 @@ async function loginValidation(req, res) {
     if (!otpToken) {
       return res.status(400).json({ message: 'Invalid or expired OTP' });
     }
+
+    // Update is_logged_in field
+    await prisma.users.update({
+      where: { id: user.id },
+      data: { is_logged_in: true }
+    });
 
     const token = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
