@@ -403,7 +403,33 @@ async function regenerateOTP(req, res) {
 async function logout(req, res) {
   try {
     const token = req.headers.authorization.split(' ')[1];
+
+    // Find the user associated with the token
+    const userToken = await prisma.tokens.findUnique({
+      where: { token },
+      include: { user: true }
+    });
+
+    if (!userToken || !userToken.user) {
+      return res.status(400).json({ message: 'Invalid token' });
+    }
+
+    const user = userToken.user;
+
+    // Check if the user is logged in
+    if (!user.is_logged_in) {
+      return res.status(403).json({ message: 'User is not logged in' });
+    }
+
+    // Delete the token
     await prisma.tokens.deleteMany({ where: { token } });
+
+    // Update the user's is_logged_in status to false
+    await prisma.users.update({
+      where: { id: user.id },
+      data: { is_logged_in: false }
+    });
+
     return res.status(200).json({ message: 'Logout successful' });
   } catch (error) {
     console.error('Logout error:', error);
@@ -526,7 +552,29 @@ async function validateUserId(req, res) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    await req.cache.set(cacheKey, user);
+    if (!user.email_verified) {
+      return res.status(403).json({ message: 'User email not verified' });
+    }
+
+    if (!user.is_active) {
+      return res.status(403).json({ message: 'User is not active' });
+    }
+
+    if (!user.is_logged_in) {
+      return res.status(403).json({ message: 'User is not logged in' });
+    }
+
+    // Create a new object with only the fields to be cached
+    const userToCache = {
+      id: user.id,
+      email: user.email,
+      is_active: user.is_active,
+      is_logged_in: user.is_logged_in,
+      created_at: user.created_at,
+      updated_at: user.updated_at
+    };
+
+    await req.cache.set(cacheKey, userToCache);
 
     return res.status(200).json({ message: 'User ID is valid' });
   } catch (error) {

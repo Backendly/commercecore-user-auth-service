@@ -18,9 +18,10 @@ client1.on('connect', () => {
 });
 */
 
-// Second Redis connection ( Redis for caching)
-const redisURL = process.env.REDIS_URL;
-const client2 = new Redis(redisURL, {
+// Second Redis connection (local Redis for caching)
+const client2 = new Redis({
+    host: 'localhost',
+    port: 6379,
     connectTimeout: 10000,
     enableReadyCheck: false,
     maxRetriesPerRequest: null

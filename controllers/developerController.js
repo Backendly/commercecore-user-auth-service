@@ -146,6 +146,7 @@ exports.retrieveToken = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
+
 // Regenerate API token
 exports.regenerateToken = async (req, res) => {
   const { email, password } = req.body;
@@ -167,11 +168,6 @@ exports.regenerateToken = async (req, res) => {
 
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Invalid password' });
-    }
-
-    const currentDateTime = new Date();
-    if (currentDateTime < developer.token_expires_at) {
-      return res.status(400).json({ error: 'Token has not expired yet' });
     }
 
     const newApiToken = uuidv4();
