@@ -1,11 +1,10 @@
-require('dotenv').config();
-const express = require('express');
-const setupMiddlewares = require('./middlewares');
-const routes = require('./routes');
-const rootRoute = require('./routes/root');
-const prisma = require('./config/db'); // Adjust the path to your Prisma client instance
-const developerScheduler = require('./utils/developerScheduler'); // Import the developer scheduler
-const userScheduler = require('./utils/userScheduler'); // Import the user scheduler
+require("dotenv").config();
+const express = require("express");
+const setupMiddlewares = require("./middlewares");
+const routes = require("./routes");
+const rootRoute = require("./routes/root");
+const developerScheduler = require("./utils/developerScheduler"); // Import the developer scheduler
+const userScheduler = require("./utils/userScheduler"); // Import the user scheduler
 
 const app = express();
 
@@ -13,10 +12,10 @@ const app = express();
 setupMiddlewares(app);
 
 // Root endpoint
-app.use('/', rootRoute);
+app.use("/", rootRoute);
 
 // Set up routes
-app.use('/api/v1', routes);
+app.use("/api/v1", routes);
 
 // Start the schedulers
 developerScheduler;
