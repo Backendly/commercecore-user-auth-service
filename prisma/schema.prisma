@@ -22,7 +22,7 @@ model developer_organizations {
 
 model developers {
   id                      String                    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  name                    String?                   @unique @db.Citext
+  name                    String?                   @db.Citext
   email                   String?                   @unique @db.Citext
   password_hash           String?                   @db.VarChar
   api_token               String?                   @unique @db.VarChar
