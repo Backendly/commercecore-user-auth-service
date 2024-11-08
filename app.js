@@ -9,19 +9,27 @@ const userScheduler = require("./utils/userScheduler"); // Import the user sched
 const app = express();
 
 // enable CORS
-app.use((req, res, next) => {
+app.use((_req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header(
     "Access-Control-Allow-Headers",
     "Content-Type, Authorization, Content-Length, X-Requested-With",
+    "X-Api-Key", "X-App-Id", "X-User-Id"
   );
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
   next();
 });
 
-// enable mini logging
+// Logging middleware
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.path}`);
+
+  const originalSend = res.send;
+  res.send = function (body) {
+    console.log(`${res.statusCode}: ${body}`);
+    return originalSend.call(this, body);
+  };
+
   next();
 });
 
