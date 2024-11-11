@@ -92,8 +92,14 @@ exports.registerDeveloper = async (req, res) => {
 exports.emailConfirmation = async (req, res) => {
   const { email, token } = req.body;
 
+  if (!email || !token) {
+    return res.status(400).json({ message: "Email and token are required" });
+  }
+
   try {
-    const developer = await prisma.developers.findUnique({ where: { email } });
+    const developer = await prisma.developers.findUnique({
+      where: { email },
+    });
 
     if (!developer || developer.email_verification_token !== token) {
       return res.status(400).json({ message: "Invalid token or email" });
@@ -128,6 +134,98 @@ exports.emailConfirmation = async (req, res) => {
     });
   }
 };
+
+// Regenerate Email Verification Token
+exports.regenerateEmailVerificationToken = async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ error: "Email is required" });
+  }
+
+  try {
+    const developer = await prisma.developers.findUnique({
+      where: { email },
+    });
+
+    if (!developer) {
+      return res.status(404).json({ error: "Developer not found" });
+    }
+
+    const emailVerificationToken = generateNumericOTP();
+
+    await prisma.developers.update({
+      where: { email },
+      data: { email_verification_token: emailVerificationToken },
+    });
+
+    // Send email verification
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "Email Verification",
+      text:
+        `Hello ${developer.name},\n\n` +
+        `Your new email verification code is: ${emailVerificationToken}\n\n` +
+        `Please note that this code will expire in 24 hours.\n\n` +
+        `Regards,\nBackendly Solutions.`,
+    };
+
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.error("Error sending email:", error);
+      } else {
+        console.log("Email sent:", info.response);
+      }
+    });
+
+    res.status(200).json({
+      message: "Email verification token regenerated successfully. Please check your email.",
+    });
+  } catch (error) {
+    console.error("Error regenerating email verification token:", error.message);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+// Login 
+exports.loginDeveloper = async (req, res) => {
+  const { email, password } = req.body;
+
+  // Validate email and password
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email and password are required" });
+  }
+
+  try {
+    // Fetch developer from the database
+    const developer = await prisma.developers.findUnique({
+      where: { email, is_active: true },
+    });
+
+    // Check if developer exists and is active
+    if (!developer) {
+      return res.status(404).json({ error: "Developer not found or inactive" });
+    }
+
+    // Compare provided password with stored password hash
+    const isPasswordValid = await bcrypt.compare(password, developer.password_hash);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: "Invalid password" });
+    }
+
+    // Return success message
+    res.status(200).json({
+      message: "Login successful",
+      success: true,
+    });
+  } catch (error) {
+    console.error("Error logging in developer:", error.message);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
 // Retrieve API token
 exports.retrieveToken = async (req, res) => {
   const { email, password } = req.body;
