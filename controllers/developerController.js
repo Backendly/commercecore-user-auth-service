@@ -121,8 +121,7 @@ exports.emailConfirmation = async (req, res) => {
 
     res.status(200).json({
       message: "Email verified successfully",
-      apiToken,
-      expiresAt,
+      success: true,
     });
   } catch (error) {
     console.error("Email confirmation error:", error);

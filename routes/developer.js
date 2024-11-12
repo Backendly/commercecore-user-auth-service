@@ -12,6 +12,12 @@ router.post('/register', developerController.registerDeveloper);
 // Email Confirmation
 router.post('/email-confirmation', developerController.emailConfirmation);
 
+// Regenerate Email Verification Token
+router.post('/regenerate-email-verification-token', developerController.regenerateEmailVerificationToken);
+
+// Login function
+router.post('/login', developerController.loginDeveloper);
+
 // Retrieve API token
 router.post('/retrieve-token', developerController.retrieveToken);
 
